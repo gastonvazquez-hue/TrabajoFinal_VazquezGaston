@@ -11,9 +11,10 @@ Este proyecto desarrolla un modelo predictivo supervisado de clasificación bina
 * **`TrabajoFinal_VazquezGaston.Rproj`**: Archivo de proyecto de RStudio para la gestión automática del directorio de trabajo y rutas relativas.
 * **`TrabajoFinal_VazquezGaston.qmd`**: Documento principal en Quarto con el flujo de trabajo completo (EDA, preprocesamiento, modelado y métricas).
 * **`Informe Final Curso de Posgrado_VazquezGaston.pdf`**: Reporte técnico final compilado.
+* **`AGENTS.md`**: Instrucciones para trabajo con soporte IA.
 * **`Header_TrabajoFinal.tex`**: Configuración de formato y estilos LaTeX para la exportación a PDF.
 * **`References_TrabajoFinal.bib`**: Archivo de referencias bibliográficas en formato BibTeX.
-* **`Figuras/`**: Gráficos generados durante el análisis (Curva ROC, Matriz de Confusión).
+* **`Figuras.zip**: Gráficos generados durante el análisis (Curva ROC, Matriz de Confusión).
 
 ---
 
