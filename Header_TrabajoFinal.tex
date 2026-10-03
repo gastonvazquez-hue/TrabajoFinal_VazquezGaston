@@ -1,0 +1,98 @@
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+% Configuración del estilo de página
+\pagestyle{fancy}
+\fancyhf{}
+
+% Encabezado
+\lhead{\small Predicción de la Informalidad Laboral en Argentina}
+\rhead{\includegraphics[height=0.8cm]{Figuras/logo.png}}
+
+% Pie de página
+\lfoot{\small Informe Técnico}
+\rfoot{\small Página \thepage}
+
+% Líneas divisorias
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% ---------------------------------------------------------
+% SOLUCIÓN AL ENCABEZADO ERRÓNEO
+% ---------------------------------------------------------
+% Redefinir el estilo 'plain' (aplicado en páginas donde inician secciones)
+% para que no imprima el encabezado superior con la marca equivocada.
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \lfoot{\small Informe Técnico}
+  \rfoot{\small Página \thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0.4pt}
+}
+
+% Ajustar ancho de Chunks a márgenes de página
+\usepackage{fvextra}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+
+% =========================================================
+% DISEÑO DE PORTADA Y REPARACIÓN DEL ÍNDICE
+% =========================================================
+\makeatletter
+\providecommand{\subtitle}[1]{\gdef\@subtitle{#1}}
+\providecommand{\@subtitle}{}
+
+\renewcommand{\maketitle}{
+  \begin{titlepage}
+    \centering
+    
+    % Logos superiores
+    \begin{minipage}{0.45\textwidth}
+      \raggedright
+      \includegraphics[height=1.8cm]{Figuras/logo.png}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}{0.45\textwidth}
+      \raggedleft
+      \includegraphics[height=1.8cm]{Figuras/depto.png}
+    \end{minipage}
+    
+    \vspace{0.8cm}
+    \rule{\linewidth}{1.5pt}\par
+    \vspace{1.2cm}
+    
+    % Título y Subtítulo
+    {\Huge \bfseries \@title \par}
+    \vspace{0.6cm}
+    {\Large \textit{\@subtitle} \par}
+    
+    \vspace{1.2cm}
+    
+    % Imagen central de portada
+    \includegraphics[width=0.65\textwidth]{Figuras/Portada2.png}\par
+    
+    \vfill
+    
+    % Integrantes y Fecha
+    \rule{\linewidth}{0.5pt}\par
+    \vspace{0.5cm}
+    
+    {\Large \textbf{Integrantes:}}\par
+    \vspace{0.3cm}
+    
+    {\large
+      \begin{tabular}[t]{c}
+        \@author
+      \end{tabular}\par
+    }
+    
+    \vspace{0.8cm}
+    {\large \@date \par}
+    
+  \end{titlepage}
+  
+  % Fuerza el fin de la portada y limpia las marcas de encabezado
+  \cleardoublepage
+  \markboth{}{} % Limpia cualquier marca previa de encabezado
+  \pagenumbering{arabic}
+}
+\makeatother
