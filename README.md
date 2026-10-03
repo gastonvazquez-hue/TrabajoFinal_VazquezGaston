@@ -8,6 +8,7 @@ Este proyecto desarrolla un modelo predictivo supervisado de clasificación bina
 
 ## 📁 Estructura del Repositorio
 
+* **`TrabajoFinal_VazquezGaston.Rproj`**: Archivo de proyecto de RStudio para la gestión automática del directorio de trabajo y rutas relativas.
 * **`TrabajoFinal_VazquezGaston.qmd`**: Documento principal en Quarto con el flujo de trabajo completo (EDA, preprocesamiento, modelado y métricas).
 * **`Informe Final Curso de Posgrado_VazquezGaston.pdf`**: Reporte técnico final compilado.
 * **`Header_TrabajoFinal.tex`**: Configuración de formato y estilos LaTeX para la exportación a PDF.
