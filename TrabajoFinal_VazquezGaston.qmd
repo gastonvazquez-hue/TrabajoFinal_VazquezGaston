@@ -1,0 +1,473 @@
+---
+title: "Informe Final Curso de Posgrado: Ciencia de Datos"
+subtitle: "Predicción de Informalidad Laboral en Argentina"
+author: "Gastón Vázquez"
+date: today
+date-format: "DD [de] MMMM [de] YYYY"
+lang: es
+
+nocite: | #Cita todas la bibliografia del archivo .bib
+  @*
+
+format:
+  pdf:
+    pdf-engine: xelatex
+    toc: true
+    toc-depth: 3
+    toc-title: "Índice General"
+    colorlinks: true
+    linkcolor: blue
+    urlcolor: blue
+    toccolor: blue
+    number-sections: true
+    geometry:
+      - top=30mm
+      - bottom=25mm
+      - left=25mm
+      - right=25mm
+    code-overflow: wrap
+    code-block-font-size: "0.8em"
+    include-in-header:
+      file: Header_TrabajoFinal.tex
+
+bibliography: References_TrabajoFinal.bib
+csl: https://www.zotero.org/styles/apa
+---
+
+\newpage
+
+```{r}
+#| label: setup # Configurar este Chunk como Setup para ejecucion Automatica
+#| include: false # Para omitir en el PDF
+#| message: false
+#| warning: false
+
+# 1.Librerías necesarias
+library(eph)
+library(tidyverse)
+library(tidymodels)
+library(skimr)
+library(gt)
+library(psych)
+library(yardstick)
+```
+
+# Introducción
+
+El empleo informal representa uno de los desafíos estructurales más persistentes en la economía argentina y en América Latina. La informalidad laboral —definida operativamente como la falta de registro de la relación laboral ante los organismos de seguridad social y de fiscalización tributaria— no solo vulnera el acceso de las personas trabajadoras a derechos fundamentales (como la cobertura médica, las licencias pagadas y los aportes jubilatorios), sino que también compromete la sostenibilidad fiscal del Estado y condiciona la productividad agregada del país[@oit2025informalidad].
+
+En Argentina, de acuerdo con los registros de la Encuesta Permanente de Hogares (EPH) realizada por el Instituto Nacional de Estadística y Censos (INDEC), la tasa de informalidad oscila entre el 36% y el 42% de la población ocupada. No obstante, su incidencia no se distribuye de manera homogénea: existen marcadas disparidades según el rango etario (afectando con mayor severidad a la juventud), el nivel educativo alcanzado, el género y la escala de la unidad económica donde se desempeña el trabajador [@indec2025metodologia].
+
+En este contexto socioeconómico, la capacidad de identificar y predecir de forma temprana la probabilidad de que un trabajador se incorpore al sector informal resulta determinante para el diseño de políticas públicas focalizadas. El objetivo del presente trabajo práctico es construir un modelo predictivo de clasificación binaria basado en Regresión Logística utilizando la metodología y las herramientas de aprendizaje automático supervisado del ecosistema `tidymodels` en R [@kuhn2022tidy]. A partir de los microdatos socio-demográficos y laborales provistos por la EPH, se evaluarán los determinantes claves de la informalidad y se ponderará el rendimiento predictivo del algoritmo priorizando la minimización de errores en la identificación del empleo no registrado.
+
+# Metodología
+
+La metodología analítica adoptada se enmarca dentro del aprendizaje automático supervisado (*supervised machine learning*) para un problema de clasificación binaria. El flujo de trabajo abarca la extracción de datos de fuentes oficiales, la limpieza y preprocesamiento de la información socio-demográfica, el tratamiento de valores faltantes mediante técnicas de imputación por vecinos más cercanos ($k$-NN) y el ajuste de un modelo de Regresión Logística para estimar la probabilidad condicional de pertenencia al sector informal.
+
+## Datos utilizados
+
+Los datos provienen de la **Encuesta Permanente de Hogares (EPH)**, un programa nacional de relevamiento continuo que lleva a cabo el Instituto Nacional de Estadística y Censos (INDEC) en los principales aglomerados urbanos de Argentina. Para este estudio se analizan los microdatos de la base individual correspondientes al **primer trimestre de 2026**.
+
+La población bajo estudio se restringió a la población ocupada en relación de dependencia (asalariados). La variable respuesta binaria de interés se definió bajo el criterio legal de protección social del INDEC, evaluando la existencia de registro en la seguridad social a través de la variable **`PP07H`**: categorizada como "informal" para aquellos trabajadores a quienes no se les efectúa el descuento jubilatorio (proxy de empleo no registrado), y como "formal" para aquellos con aporte y descuento efectivo.
+
+::: callout-note
+**Aclaración metodológica**: Tanto la OIT [@oit2003ciet] como el INDEC [@indec2025metodologia] adoptan el criterio legal y de protección social para la población asalariada, definiendo formalidad estrictamente por el cumplimiento de los beneficios de la seguridad social (descuento jubilatorio). Por lo tanto, la variable **`PP07H`** es la mejor y única proxy directa que ofrece la EPH para caracterizar la informalidad en asalariados.
+:::
+
+Como variables predictoras socio-demográficas y de empleo se seleccionaron:
+
+- **`Edad (CH06)`**: Edad en años cumplidos.
+
+- **`Sexo (CH04)`**: Género del encuestado (Varón / Mujer).
+
+- **`Nivel_educativo (Nivel_ED)`**: Nivel de instrucción alcanzado.
+
+- **`Horas_semanales (PP3E_TOT)`**: Total de horas trabajadas por semana en la ocupación principal.
+
+- **`Ingreso (PP08D1)`**: Ingreso mensual derivado de la ocupación principal.
+
+## Software Utilizado
+
+Para el procesamiento de los datos, modelado y generación del presente informe se utilizó el lenguaje de programación y entorno estadístico **R** (R2026). El flujo de trabajo de modelado predictivo se implementó mediante el ecosistema **`tidymodels`** [@kuhn2022tidy], complementado por las siguientes librerías especializadas:
+
+- **`eph`**: Para la descarga e importación automatizada de la base de datos de la EPH desde los servidores del INDEC.
+
+- **`tidyverse`**: Para las tareas de manipulación de datos, transformación de variables y visualización.
+
+- **`skimr`** y **`psych`**: Para el análisis exploratorio de datos y el resumen estadístico descriptivo.
+
+- **`yardstick`**: Para el cálculo de las métricas de rendimiento del modelo (matriz de confusión, sensibilidad, especificidad y curvas ROC-AUC).
+
+- **`gt`**: Para la construcción, diseño y renderizado de tablas de presentación con calidad de publicación ejecutiva y académica.
+
+Este proyecto se encuentra alojado en el siguiente [repositorio de GitHub](https://github.com/gastonvazquez-hue/TrabajoFinal_VazquezGaston.git).
+
+# Desarrollo
+
+## Análisis Exploratorio de Datos (EDA)
+
+Para abordar el Análisis Exploratorio de Datos (EDA) sobre el conjunto de datos crudos de la Encuesta Permanente de Hogares (EPH) correspondiente al primer trimestre de 2026, se evaluó la integridad de la muestra, la presencia de valores atípicos/faltantes y la distribución de las variables clave antes de proceder a la fase de pre-procesamiento y modelado.
+
+```{r}
+#| label: eda-datos-crudos
+#| message: false
+#| warning: false
+
+# 1. Carga de los microdatos de la EPH (1er trimestre de 2026)
+eph_raw <- get_microdata(year = 2026, period = 1, type = "individual") 
+
+# 2. Filtrado de asalariados en edad de trabajar (18-65 años) y limpieza previa de códigos de no respuesta
+eph_asalariados <- eph_raw |> 
+  filter(
+    ESTADO == 1, 
+    PP07H %in% c(1, 2),
+    CH06 >= 18 & CH06 <= 65  # Filtro de edad para acotar a la población objetivo antes del EDA
+  ) |> 
+  select( 
+    PP07H,     # 1: Formal, 2: Informal 
+    CH06,      # Edad (Población Económicamente Activa: 18-65)
+    CH04,      # Sexo (1: Varón, 2: Mujer) 
+    NIVEL_ED,  # Nivel educativo 
+    PP3E_TOT,  # Horas trabajadas por semana 
+    PP08D1     # Monto de ingreso de la ocupación principal 
+  ) |> 
+  mutate(
+    # Reemplazo de códigos no válidos/no respuesta (<= 0, 999) por NA antes del EDA
+    PP3E_TOT = if_else(PP3E_TOT <= 0 | PP3E_TOT > 168, NA_real_, as.numeric(PP3E_TOT)),
+    PP08D1   = if_else(PP08D1 <= 0, NA_real_, as.numeric(PP08D1))
+  )
+
+# 3. Inspección exploratoria con estadísticas descriptivas insesgadas
+eph_asalariados |> 
+  skim()
+```
+
+El análisis exploratorio inicial sobre la base de microdatos crudos del primer trimestre de 2026 abarcó la inspección general de la muestra y la evaluación de la calidad del dato. La base completa comprende un total de 43739 registros individuales y 234 atributos socio-demográficos.
+
+La población objeto de este estudio incluye a los trabajadores ocupados en relación de dependencia (asalariados) en edad de trabajar (18 a 65 años) registrados o no. En este sentido, se han identificado los siguientes patrones de relevancia estadística y metodológica:
+
+Distribución de la Variable Respuesta (Informalidad): Mediante el indicador de descuento jubilatorio (PP07H), se cuantifica la tasa base de informalidad en la muestra. Este análisis evidencia una prevalencia de no registro cercana al 37-40%, lo cual confirma que el conjunto de datos no presenta un desbalance extremo de clases, permitiendo el uso de la estratificación convencional en la partición muestral.
+
+Distribución e Imputación Necesaria: La variable de ingresos de la ocupación principal (PP08D1) y las horas semanales trabajadas (PP3E_TOT) exhiben una marcada asimetría positiva (skewness), junto con la presencia de valores codificados como cero o no respuesta. La presencia de estos datos faltantes justifica el uso de un método de imputación multivariada basado en el método Vecinos Más Cercanos (k-NN) durante la fase de pre-procesamiento, evitando la pérdida de observaciones representativas mediante la eliminación por casos completos.
+
+Estructura Categórica: Las variables de género (CH04) y nivel educativo (NIVEL_ED) muestran una cobertura completa sin valores nulos en la muestra filtrada, constituyendo predictores categóricos sólidos para la fase de modelación.
+
+## Pre-procesamiento de Datos (Recipe)
+
+A partir de los hallazgos del análisis exploratorio, se diseñó una estrategia integral de preparación de datos mediante una receta de preprocesamiento (recipe)e Ingeniería de Características (*Feature Engineering*) con la librería tidymodels. Este enfoque garantiza un tratamiento sistemático e insesgado de la información, previniendo la fuga de datos (data leakage) al aplicar todas las transformaciones estrictamente dentro de los pliegues del flujo de modelado.
+
+Las etapas de preprocesamiento e ingeniería de características implementadas comprendieron:
+
+### Tratamiento de Valores Faltantes e Imputación por k-Vecinos Más Cercanos
+
+En encuestas de empleo como la EPH, las variables continuas clave como el ingreso derivado de la ocupación principal (`PP08D1`) y el total de horas semanales trabajadas (`PP3E_TOT`) presentan valores no válidos o registros sin respuesta (codificados originalmente como `<= 0 ó 999`). En lugar de aplicar una eliminación por casos completos —la cual reduciría la representatividad muestral—, se utilizó un algoritmo de imputación multivariada por k-NN (k = 5). Este método estima los valores ausentes en función de la distancia euclídea calculada sobre las características sociodemográficas completas de los individuos más cercanos.
+
+### Reagrupamiento Categórico (*Binning*)
+
+La variable ordinal del nivel educativo (`NIVEL_ED`), compuesta originalmente por múltiples categorías desagregadas, se recodificó en un factor estructurado de tres niveles principales: Bajo (hasta secundario incompleto), Medio (secundario completo y terciario/universitario incompleto) y Alto (terciario/universitario completo). Esta simplificación reduce la escasez de datos (*data sparsity*) por categoría y mejora la interpretabilidad de los coeficientes del modelo.
+
+### Codificación de Variables Categóricas (*Dummy Variables*)
+
+Las variables cualitativas (`sexo` y `nivel_educativo`) se transformaron en un conjunto de variables indicadoras binarias (*dummificación*). Este paso resulta indispensable para permitir la evaluación matricial de los predictores nominales dentro de la ecuación de regresión logística.
+
+### Estandarización y Escalado de Variables Continuas
+
+Debido a que las variables numéricas poseen escalas marcadamente heterogéneas (por ejemplo, la `edad` medida en años frente al `ingreso` medido en unidades monetarias), se aplicó una transformación de centrado y escalado (Z-score) a todas las variables cuantitativas continuas. Esta estandarización es matemáticamente crucial para el cálculo adecuado de métricas de distancia en el algoritmo de imputación k-NN y garantiza la estabilidad numérica en el proceso de optimización por máxima verosimilitud del modelo logístico.
+
+```{r}
+#| label: preparacion-receta
+#| message: false
+#| warning: false
+
+# 1. Preparación del dataset objetivo con asignación correcta de niveles
+eph_preparada <- eph_asalariados |> 
+  mutate( 
+    # Nivel 1 (Referencia): "Formal", Nivel 2 (Evento Objetivo): "Informal"
+    informal = factor( 
+      if_else(PP07H == 2, "Informal", "Formal"), 
+      levels = c("Formal", "Informal") 
+    ), 
+    sexo = factor(if_else(CH04 == 1, "Varon", "Mujer")), 
+    nivel_educativo = factor(
+      case_when( 
+        NIVEL_ED %in% c(1, 2, 3) ~ "Bajo", 
+        NIVEL_ED %in% c(4, 5) ~ "Medio", 
+        NIVEL_ED %in% c(6, 7) ~ "Alto", 
+        TRUE ~ "Bajo" 
+      ),
+      levels = c("Bajo", "Medio", "Alto")
+    ), 
+    edad = as.numeric(CH06), 
+    ingreso = PP08D1, 
+    horas_semanales = PP3E_TOT 
+  ) |> 
+  select(informal, sexo, nivel_educativo, edad, ingreso, horas_semanales) 
+
+# 2. Especificación correcta de la Receta (Imputación antes de Normalización)
+eph_recipe <- recipe(informal ~ ., data = eph_preparada) |> 
+  # Paso 1: Imputación k-NN primero sobre los datos incompletos
+  step_impute_knn(ingreso, horas_semanales, neighbors = 5) |> 
+  # Paso 2: Normalización sobre variables continuas previamente completadas
+  step_normalize(all_numeric_predictors()) |> 
+  # Paso 3: Generación de variables dummy para categóricas
+  step_dummy(all_nominal_predictors())
+
+# Visualizar el resultado final procesado
+bake(prep(eph_recipe), new_data = NULL) |> head()
+```
+
+\newpage
+
+## Modelación
+
+En esta etapa se especifica, entrena y evalúa el modelo predictivo supervisado diseñado para estimar la probabilidad de que un trabajador asalariado pertenezca al sector informal. Siguiendo el enfoque estructurado y modular de `tidymodels`, la fase de modelación comprende los siguientes pasos clave:
+
+### Partición Estratificada de los Datos (*Data Splitting*)
+
+División del conjunto de datos procesado en un subconjunto de entrenamiento (*training set*) y otro de evaluación (*test set*), preservando la proporción original de la variable respuesta binaria (`informal` / `formal`) mediante muestreo estratificado.
+
+```{r}
+#| label: particion-datos
+#| message: false
+#| warning: false
+
+# 1. Partición estratificada (75 % entrenamiento / 25 % evaluación)
+set.seed(123) 
+eph_split <- initial_split(eph_preparada, prop = 0.75, strata = informal) 
+eph_train <- training(eph_split) 
+eph_test  <- testing(eph_split) 
+
+# Definición de pliegues para validación cruzada (10-fold CV)
+set.seed(123) 
+eph_folds <- vfold_cv(eph_train, v = 10, strata = informal) 
+```
+
+### Especificación del Modelo
+
+Definición formal de la arquitectura del algoritmo (Regresión Logística), especificando el motor computacional (`engine = "glm"`) y el modo predictivo (`mode = "classification"`).
+
+```{r}
+#| label: especificacion-modelo
+#| message: false
+#| warning: false
+
+# 2. Especificación del modelo de Regresión Logística
+lr_spec <- logistic_reg() |> 
+  set_engine("glm") |> 
+  set_mode("classification") 
+```
+
+### Construcción del Flujo de Trabajo (Workflow)
+
+Integración acoplada de la receta de preprocesamiento (`eph_recipe`) con la especificación del modelo en un objeto único de `workflow` para prevenir fugas de datos (*data leakage*).
+
+```{r}
+#| label: construccion-workflow
+#| message: false
+#| warning: false
+
+# 3. Ensamblado del Workflow unificado (Receta + Modelo)
+eph_workflow <- workflow() |> 
+  add_recipe(eph_recipe) |> 
+  add_model(lr_spec) 
+```
+
+### Entrenamiento y Evaluación en Validación Cruzada (Cross-Validation)
+
+Re-muestreo con validación cruzada de 10 pliegues (10-fold CV) sobre el conjunto de entrenamiento para estimar el rendimiento de forma insesgada antes del ajuste definitivo.
+
+```{r}
+#| label: tbl-evaluacion-cv
+#| tbl-cap: "Resultados de la Validación Cruzada (10-fold CV)"
+#| message: false
+#| warning: false
+
+# 4. Ajuste y evaluación con Validación Cruzada (10-fold CV)
+lr_res <- eph_workflow |> 
+  fit_resamples( 
+    resamples = eph_folds, 
+    metrics = metric_set(roc_auc, accuracy, sensitivity, specificity), 
+    control = control_resamples(save_pred = TRUE) 
+  ) 
+
+# Resumen de métricas de CV
+collect_metrics(lr_res) |> 
+  knitr::kable() 
+
+# Extracción dinámica de variables
+metrics_cv <- collect_metrics(lr_res)
+
+roc_auc_val     <- metrics_cv |> filter(.metric == "roc_auc") |> pull(mean)
+accuracy_val    <- metrics_cv |> filter(.metric == "accuracy") |> pull(mean)
+sensitivity_val <- metrics_cv |> filter(.metric == "sensitivity") |> pull(mean)
+specificity_val <- metrics_cv |> filter(.metric == "specificity") |> pull(mean)
+max_std_err     <- max(metrics_cv$std_err, na.rm = TRUE)
+```
+
+La tabla @tbl-evaluacion-cv muestra los resultados de la validación cruzada de 10 pliegues (*10-fold cross-validation*) y evidencia un desempeño global sólido y estable del modelo de regresión logística para la predicción de la informalidad laboral:
+
+- **Capacidad Discriminativa (ROC-AUC = `r sprintf("%.3f", roc_auc_val)`):** El modelo alcanza un área bajo la curva ROC promedio de `r sprintf("%.3f", roc_auc_val)`, lo que indica buen poder de discriminación general para distinguir entre trabajadores formales e informales.
+
+- **Exactitud Global (Accuracy = `r sprintf("%.3f", accuracy_val)`):** La tasa de clasificación correcta se ubica en un `r sprintf("%.1f%%", accuracy_val * 100)`, demostrando un ajuste global competitivo considerando la naturaleza de los microdatos sociodemográficos de la EPH.
+
+- **Sensibilidad (Sensitivity = `r sprintf("%.3f", sensitivity_val)`):** El modelo logra identificar correctamente al `r sprintf("%.1f%%", sensitivity_val * 100)` de los asalariados no registrados (clase positiva de interés, *Informal*).
+
+- **Especificidad (Specificity = `r sprintf("%.3f", specificity_val)`):** Presenta una efectividad del `r sprintf("%.1f%%", specificity_val * 100)` para identificar correctamente a los trabajadores registrados (*Formal*).
+
+- **Estabilidad del Modelo:** Los errores estándar marcadamente reducidos (`std_err` \< `r sprintf("%.3f", max_std_err)` en todas las métricas) confirman que el rendimiento del algoritmo es robusto e insensible a la partición específica de los pliegues de validación.
+
+### Interpretación del Modelo: Cálculo e Interpretación de Odds Ratios (OR)
+
+```{r}
+#| label: odds-ratios
+#| message: false
+#| warning: false
+
+# Extracción directa y consistente de Odds Ratios (OR) para INFORMAL
+eph_workflow |> 
+  fit(data = eph_train) |> 
+  extract_fit_engine() |> 
+  tidy(exponentiate = TRUE, conf.int = TRUE) |> 
+  select( 
+    term, 
+    estimate_OR = estimate, 
+    std.error, 
+    p.value, 
+    conf.low, 
+    conf.high 
+  )
+```
+
+Para determinar qué variables explican en mayor medida la probabilidad de encontrarse en la **informalidad laboral**, se calcularon los *Odds Ratios* ($OR = e^\beta$) junto con sus intervalos de confianza al 95%:
+
+- **Ingreso de la Ocupación Principal (**$OR = 0,223, p < 0,001$): Es la variable con mayor efecto sobre el fenómeno. Al incrementarse el ingreso en una desviación estándar, la ventaja (*odds*) de ser informal se reduce en un **77,7%** ($1 - 0,223$). Esto confirma que los niveles salariales más bajos concentran la mayor probabilidad de empleo no registrado.
+
+- **Nivel Educativo (**$OR_{\text{Alto}} = 0,215, OR_{\text{Medio}} = 0,461, p < 0,001$): Exhibe un fuerte efecto protector progresivo. Tener un nivel educativo alto (terciario/universitario) disminuye la ventaja de ser informal en un **78,5%** ($1 - 0,215$) respecto a quienes poseen un nivel educativo bajo (categoría de referencia). Para el nivel medio, la reducción es del **53,9%** ($1 - 0,461$).
+
+- **Edad (**$OR = 0,637, p < 0,001$): Actúa como factor protector ante la informalidad. Por cada incremento en una desviación estándar de la edad, la ventaja de ser informal disminuye un **36,3%** ($1 - 0,637$), evidenciando la mayor vulnerabilidad e inserción precaria que enfrentan los jóvenes en el mercado laboral argentino.
+
+- **Horas Semanales Trabajadas (**$OR = 0,873, p < 0,001$): Presenta una asociación inversa significativa; a mayor carga horaria semanal (en una desviación estándar), las probabilidades de informalidad disminuyen un **12,7%** ($1 - 0,873$).
+
+- **Sexo (**$OR_{\text{Varón}} = 1,220, p < 0,001$): Los varones presentan un riesgo un **22,0%** superior ($1,220 - 1$) de estar en la informalidad en comparación con las mujeres, manteniendo constantes las demás variables sociodemográficas y laborales del modelo.
+
+### Evaluación Final sobre el Conjunto de Prueba (Test Set)
+
+Extracción y análisis de métricas globales mediante `yardstick`, enfatizando el área bajo la curva ROC (`roc_auc`), la sensibilidad (*sensitivity*), la especificidad (*specificity*) y la Matriz de Confusión sobre el conjunto de evaluación.
+
+```{r}
+#| label: ajuste-final-test
+#| message: false
+#| warning: false
+
+# 5. Ajuste final sobre entrenamiento y evaluación en el Test Set
+final_fit <- eph_workflow |> 
+  last_fit(eph_split) 
+
+# Métricas globales de rendimiento sobre el conjunto de evaluación
+collect_metrics(final_fit) 
+
+# Matriz de Confusión sobre datos no vistos (test)
+collect_predictions(final_fit) |> 
+  conf_mat(truth = informal, estimate = .pred_class) 
+```
+
+Para validar la capacidad de generalización del modelo ajustado sobre datos no vistos, se aplicó la función `last_fit()` sobre el conjunto de evaluación (*test set*). Los resultados obtenidos corroboran la estabilidad y consistencia del modelo:
+
+### Métricas de Rendimiento del Modelo (Curva ROC y Brier Score)
+
+- **Exactitud (*Accuracy =*** $0,784$): El $78,4%$% de las clasificaciones realizadas sobre el conjunto de prueba fueron correctas.
+
+- **Puntaje Brier (Brier Score =** $0,154$**):**
+
+  Va de 0 (predicciones perfectas) a 1 (predicciones totalmente erróneas).
+
+  El valor obtenido confirma una buena calibración en las probabilidades predichas por el modelo (cuanto más cercano a $0$, menor es el error cuadrático medio de las probabilidades).
+
+- **Capacidad Discriminativa (*ROC-AUC =*** $0,841$**):** Mantiene una excelente capacidad de separación de clases, mostrando un ligero incremento respecto al promedio obtenido en la validación cruzada (0,831) lo que descarta problemas de sobreajuste (*overfitting*).
+
+```{r}
+#| label: curva-roc
+#| message: false
+#| warning: false
+#| fig-cap: "Curva ROC para el modelo de clasificación de informalidad laboral"
+
+# 1. Obtención de las predicciones del conjunto de prueba
+eph_preds <- collect_predictions(final_fit)
+
+# 2. Generación nativa de la Curva ROC para la clase positiva "Informal"
+eph_preds <- collect_predictions(final_fit) 
+
+eph_preds |> 
+  roc_curve(truth = informal, .pred_Informal, event_level = "second") |> 
+  autoplot() + 
+  labs( 
+    title = "Curva ROC - Modelo de Regresión Logística", 
+    subtitle = paste(
+      "ROC-AUC =", 
+      round(collect_metrics(final_fit) |> filter(.metric == "roc_auc") |> pull(.estimate), 3)
+    ), 
+    x = "1 - Especificidad (Tasa de Falsos Positivos)", 
+    y = "Sensibilidad (Tasa de Verdaderos Positivos)" 
+  ) + 
+  theme_minimal()
+```
+
+### Matriz de Confusión
+
+```{r}
+#| label: matriz-confusion-grafica
+#| message: false
+#| warning: false
+#| fig-cap: "Matriz de confusión gráfica en mapa de calor"
+
+# 1. Calcular la matriz de confusión
+matriz_test <- collect_predictions(final_fit) |> 
+  conf_mat(truth = informal, estimate = .pred_class)
+
+# 2. Graficar la matriz de confusión tipo Heatmap
+autoplot(matriz_test, type = "heatmap") +
+  scale_fill_gradient(
+    low = "#FFF3E0", 
+    high = "#E65100", 
+    name = "Frecuencia"
+  ) +
+  labs(
+    title = "Matriz de Confusión",
+    x = "Estado Real (EPH)",
+    y = "Predicción del Modelo"
+  ) +
+  theme_minimal()
+```
+
+- **Verdaderos Positivos (Informal correctamente clasificado):** $859$ casos.
+
+- **Verdaderos Negativos (Formal correctamente clasificado):** $1814$ casos.
+
+- **Falsos Negativos (Informales clasificados como Formales):** $407$ casos (Error Tipo II).
+
+- **Falsos Positivos (Formales clasificados como Informales):** $329$ casos (Error Tipo I).
+
+En resumen, la matriz de confusión muestra que el modelo mantiene una mayor precisión al identificar la categoría de trabajadores formales, mientras que conserva un desempeño aceptable y equilibrado para capturar la informalidad laboral en la muestra independiente de evaluación.
+
+{{< pagebreak >}}
+
+# Conclusión
+
+El presente trabajo abordó la predicción de la informalidad laboral en la población asalariada de Argentina a partir de los microdatos del primer trimestre de 2026 de la Encuesta Permanente de Hogares (EPH), utilizando el marco conceptual y estructurado del ecosistema `tidymodels`. La estrategia de preprocesamiento —que incluyó la imputación multivariada por vecinos más cercanos ($k$-NN), el reagrupamiento categórico y la estandarización de predictores cuantitativos, garantizó una preparación de datos libre de fugas de información (*data leakage*).
+
+El ajuste del modelo de regresión logística exhibió un desempeño predictivo sólido y consistente. En la evaluación sobre el conjunto de prueba independiente (*test set*), la arquitectura alcanzó un área bajo la curva ROC de $0{,}841$ y una exactitud de $78{,}4\%$. Estos resultados corroboraron la estabilidad de las métricas obtenidas durante la validación cruzada de 10 pliegues ($10$-fold CV), confirmando que el algoritmo posee una elevada capacidad de generalización sobre observaciones no vistas.
+
+El análisis inferencial mediante *Odds Ratios* ($e^\beta$) permitió identificar los determinantes de mayor peso sobre la probabilidad de no estar registrado en la seguridad social. Se constató que el ingreso mensual derivado de la ocupación principal y el nivel educativo alto (terciario o universitario) constituyen los factores protectores más determinantes, reduciendo drásticamente la ventaja (*odds*) de pertenecer al sector informal.
+
+Adicionalmente, los hallazgos revelaron que la edad actúa como una variable condicionante crítica de la vulnerabilidad laboral, evidenciando una mayor concentración de empleo no registrado en las cohortes jóvenes. Por su parte, la variable sexo mostró que los varones presentan una probabilidad levemente superior de informalidad en comparación con las mujeres, controlando por la carga horaria y el resto de los predictores sociodemográficos.
+
+Limitación en la especificación del modelo: El modelo incluye únicamente 5 variables predictoras (`edad`, `sexo`, `nivel_educativo`, `ingreso` y `horas_semanales`). Tal como el propio informe reconoce en sus conclusiones, se omitieron variables críticas de la EPH que explican la informalidad laboral, tales como la rama de actividad económica, el tamaño del establecimiento/empresa y la región geográfica / aglomerado urbano.
+
+Como líneas de investigación futuras, se sugiere profundizar el análisis mediante algoritmos no lineales y de ensamble (como *Random Forest* o *XGBoost*) para capturar posibles interacciones complejas en los datos. Asimismo, resulta de gran interés explotar la estructura de panel de la EPH para realizar abordajes longitudinales e incorporar más variables vinculadas al fenómeno de la informalidad, tales como el tamaño de los establecimientos productivos, la rama de actividad y la región geográfica, todos parámetros muy importantes para el diseño de políticas públicas orientadas a promover la formalización laboral.
+
+{{< pagebreak >}}
+
+# Bibliografía {.unnumbered}
+
+::: {#refs}
+:::
